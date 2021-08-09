@@ -2,3 +2,4 @@
 .git
 Dockerfile
 elk_load.py
+elk
