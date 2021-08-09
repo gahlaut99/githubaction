@@ -1,0 +1,57 @@
+on:
+  pull_request: {}
+  push:
+    branches:
+    - main
+    - master
+name: Semgrep
+jobs:
+  semgrep:
+    name: Scan
+    runs-on: ubuntu-latest
+    # Skip any PR created by dependabot to avoid permission issues
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      # Fetch project source
+      - uses: actions/checkout@v2
+     # - uses: returntocorp/semgrep-action@v1
+      #  with:
+       #   config: >- # more at semgrep.dev/explore
+        #    r/all
+         #   p/security-audit
+          #  p/secrets
+
+        # Instead, just collect findings for semgrep.dev/manage/findings
+          #auditOn: push
+
+        # Change job timeout (default is 1800 seconds; set to 0 to disable)
+        #env:
+         # SEMGREP_JSON_OUTPUT: 1
+          #SEMGREP_TIMEOUT: 300
+          
+      - name: Run semgrep Agent
+        run: docker run --rm -v $(pwd):/src --workdir /src returntocorp/semgrep-agent:v1 semgrep-agent --config r/all  --gitlab-json > semgre_json
+        continue-on-error: true
+    
+      - name: Check Json file content
+        run: cat semgre_json
+        if: always()
+        
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+           python-version: 3.8 #install the python needed
+  
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install elasticsearch
+  
+      - name: Load findings to elk
+        run: |
+            python elk_load.py
+        env:
+          url: ${{ secrets.ELK_URL }}
+          user: ${{ secrets.ELK_USERNAME }}
+          pass: ${{ secrets.ELK_PASSWORD }}
+
